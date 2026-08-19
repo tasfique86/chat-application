@@ -1,10 +1,13 @@
 //external inputs
 const express = require("express");
+const http = require("http");
 const dotenv = require("dotenv");
 const mongoose = require("mongoose");
 const app = express();
 const cookieParser = require("cookie-parser");
 const path = require("path");
+const moment = require("moment");
+const { Server } = require("socket.io");
 
 //internal inputs
 const {
@@ -17,6 +20,7 @@ const inboxRouter = require("./routers/inboxRouter");
 
 //const userRouter = require("./routers/userRouter");
 
+//load environment variables
 dotenv.config();
 
 //database connection
@@ -27,10 +31,13 @@ mongoose
 
 //request body parser
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.urlencoded({ extended: true })); //parse urlencoded request body
 
 //set view engine
 app.set("view engine", "ejs");
+
+// expose moment to templates
+app.locals.moment = moment;
 
 //set static folder
 
@@ -51,7 +58,20 @@ app.use("/inbox", inboxRouter);
 app.use(notFoundHandler);
 app.use(errorHandler);
 
-app.listen(process.env.APP_PORT, () => {
+// create HTTP server and Socket.IO instance
+const server = http.createServer(app);
+global.io = new Server(server);
+
+global.io.on("connection", (socket) => {
+  console.log("Socket connected:", socket.id);
+
+  socket.on("disconnect", () => {
+    console.log("Socket disconnected:", socket.id);
+  });
+});
+
+//start server
+server.listen(process.env.APP_PORT, () => {
   console.log(
     `${process.env.APP_NAME} is running on port ${process.env.APP_PORT}`,
   );
